@@ -61,4 +61,54 @@ public class Dungeon {
         instanceSemaphore = new Semaphore(nInstances);
 
     }
+
+    public static void runDungeon(int partyId) {
+        try {
+            instanceSemaphore.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
+        DungeonInstance chosenInstance = null;
+
+        synchronized (instanceLock) {
+            for (DungeonInstance inst : instances) {
+                if (!inst.active) {
+                    inst.active = true;
+                    chosenInstance = inst;
+                    break;
+                }
+            }
+        }
+
+        if (chosenInstance == null) {
+            System.out.println("Error: No available instance found for Party " + partyId + ".");
+            instanceSemaphore.release();
+            return;
+        }
+
+        System.out.println("[START] Party " + partyId 
+                + " has been assigned to Instance " + chosenInstance.id 
+                + " and is now active.");
+
+        int runTime = new Random().nextInt(t2 - t1 + 1) + t1;
+        try {
+            Thread.sleep(runTime * 1000L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        synchronized (instanceLock) {
+            chosenInstance.partiesServed++;
+            chosenInstance.totalTime += runTime;
+            chosenInstance.active = false;
+        }
+        
+        System.out.println("[END] Party " + partyId 
+                + " finished in Instance " + chosenInstance.id 
+                + " (Run time: " + runTime + "s).");
+
+        instanceSemaphore.release();
+    }
 }
