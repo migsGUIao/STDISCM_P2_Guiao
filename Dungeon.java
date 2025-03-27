@@ -60,6 +60,48 @@ public class Dungeon {
         }
         instanceSemaphore = new Semaphore(nInstances);
 
+        List<Thread> partyThreads = new ArrayList<>();
+
+        while (true) {
+            synchronized (playerLock) {
+                if (tankCount < 1 || healerCount < 1 || dpsCount < 3)
+                    break;
+                // Decrement appropriate variables for one party
+                tankCount--;
+                healerCount--;
+                dpsCount -= 3;
+            }
+            partyCounter++;
+            int partyId = partyCounter;
+            Thread partyThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    runDungeon(partyId);
+                }
+            });
+            partyThreads.add(partyThread);
+            partyThread.start();
+
+        }
+
+        for (Thread t : partyThreads) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        // Final summary of instance usage.
+        System.out.println("\n--- Final Summary ---");
+        synchronized (instanceLock) {
+            for (DungeonInstance inst : instances) {
+                System.out.println("Instance " + inst.id + ": Served " + inst.partiesServed 
+                        + " parties, Total time served: " + inst.totalTime + " seconds.");
+            }
+        }
+        scanner.close();
+
     }
 
     public static void runDungeon(int partyId) {
@@ -104,7 +146,7 @@ public class Dungeon {
             chosenInstance.totalTime += runTime;
             chosenInstance.active = false;
         }
-        
+
         System.out.println("[END] Party " + partyId 
                 + " finished in Instance " + chosenInstance.id 
                 + " (Run time: " + runTime + "s).");
